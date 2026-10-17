@@ -1,0 +1,316 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <iomanip>
+#include <sys/stat.h> 
+
+using namespace std;
+
+class Book {
+private:
+    string id;
+    string title;
+    string authorId;
+    int publishYear;
+    double price;
+    int quantity;
+
+public:
+    Book() {}
+    Book(string id, string title, string authorId, int publishYear, double price, int quantity) {
+        this->id = id;
+        this->title = title;
+        this->authorId = authorId;
+        this->publishYear = publishYear;
+        this->price = price;
+        this->quantity = quantity;
+    }
+
+    string getId() const { return id; }
+    void setId(string id) { this->id = id; }
+
+    string getTitle() const { return title; }
+    void setTitle(string title) { this->title = title; }
+
+    string getAuthorId() const { return authorId; }
+    void setAuthorId(string authorId) { this->authorId = authorId; }
+
+    int getPublishYear() const { return publishYear; }
+    void setPublishYear(int publishYear) { this->publishYear = publishYear; }
+
+    double getPrice() const { return price; }
+    void setPrice(double price) { this->price = price; }
+
+    int getQuantity() const { return quantity; }
+    void setQuantity(int quantity) { this->quantity = quantity; }
+
+    string toString() const {
+        return id + "|" + title + "|" + authorId + "|" + to_string(publishYear) + "|" + to_string(price) + "|" + to_string(quantity);
+    }
+
+    static Book fromString(string line) {
+        size_t pos = 0;
+        vector<string> tokens;
+        while ((pos = line.find("|")) != string::npos) {
+            tokens.push_back(line.substr(0, pos));
+            line.erase(0, pos + 1);
+        }
+        tokens.push_back(line); 
+        if (tokens.size() >= 6) {
+            return Book(tokens[0], tokens[1], tokens[2], stoi(tokens[3]), stod(tokens[4]), stoi(tokens[5]));
+        }
+        return Book();
+    }
+
+    void displayRow() const {
+        cout << left << setw(10) << id 
+             << setw(25) << title.substr(0, 23) 
+             << setw(12) << authorId 
+             << setw(10) << publishYear 
+             << setw(12) << fixed << setprecision(0) << price 
+             << setw(10) << quantity << endl;
+    }
+};
+
+class BookManager {
+private:
+    vector<Book> books;
+    const string filePath = "data/books.txt";
+
+    string getAuthorName(string authorId) {
+		return authorId; 
+    }
+
+    bool isBookInActiveBorrowSlip(string bookId) {
+        ifstream file("data/borrow_slips.txt");
+        if (!file.is_open()) return false; 
+        string line;
+        while (getline(file, line)) {
+            if (line.find(bookId) != string::npos && line.find("CHUA_TRA") != string::npos) {
+                file.close();
+                return true;
+            }
+        }
+        file.close();
+        return false;
+    }
+
+public:
+    BookManager() {
+        loadFromFile();
+    }
+
+    void loadFromFile() {
+        books.clear();
+        ifstream file(filePath);
+        if (!file.is_open()) return;
+        string line;
+        while (getline(file, line)) {
+            if (!line.empty()) {
+                books.push_back(Book::fromString(line));
+            }
+        }
+        file.close();
+    }
+
+    void saveToFile() {
+        system("mkdir data 2>nul");
+        ofstream file(filePath);
+        for (const auto& book : books) {
+            file << book.toString() << endl;
+        }
+        file.close();
+    }
+
+    void addBook() {
+        cout << "\n=== THEM SACH MOI ===\n";
+        string id, title, authorId;
+        int publishYear, quantity;
+        double price;
+
+        cin.ignore();
+        while (true) {
+            cout << "Nhap ma sach: ";
+            getline(cin, id);
+            if (id.empty()) {
+                cout << "Ma sach khong duoc de trong! Vui long nhap lai.\n";
+                continue;
+            }
+            bool exists = false;
+            for (const auto& b : books) {
+                if (b.getId() == id) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (exists) {
+                cout << "Ma sach da ton tai! Vui long nhap ma khac.\n";
+            } else {
+                break;
+            }
+        }
+
+        cout << "Nhap ten sach: ";
+        getline(cin, title);
+        cout << "Nhap ma tac gia: ";
+        getline(cin, authorId);
+
+        while (true) {
+            cout << "Nhap nam xuat bản: ";
+            if (cin >> publishYear && publishYear > 1000 && publishYear <= 2026) {
+                break;
+            }
+            cout << "Nam xuat bản khong hop le! Vui long nhap lại.\n";
+            cin.clear();
+            cin.ignore(10000, '\n');
+        while (true) {
+            cout << "Nhap gia bia: ";
+            if (cin >> price && price >= 0) {
+                break;
+            }
+            cout << "Gia bia khong hop le! Vui long nhap lai.\n";
+            cin.clear();
+            cin.ignore(10000, '\n');
+        }
+
+        while (true) {
+            cout << "Nhap so luong: ";
+            if (cin >> quantity && quantity >= 0) {
+                break;
+            }
+            cout << "So luong khong hop le! Vui long nhap lai.\n";
+            cin.clear();
+            cin.ignore(10000, '\n');
+        }
+
+        books.push_back(Book(id, title, authorId, publishYear, price, quantity));
+        saveToFile();
+        cout << "=> Them sach thanh cong!\n";
+    }
+}
+    void displayBooks() {
+        if (books.empty()) {
+            cout << "\nDanh sach sach hien tai dang trong!\n";
+            return;
+        }
+        cout << "\n================================ DANH SACH SACH ================================\n";
+        cout << left << setw(10) << "Ma Sach" 
+             << setw(25) << "Ten Sach" 
+             << setw(12) << "Tac Gia" 
+             << setw(10) << "Nam XB" 
+             << setw(12) << "Gia (VND)" 
+             << setw(10) << "So Luong" << endl;
+        cout << "----------------------------------------------------------------------------------\n";
+        
+        for (const auto& b : books) {
+            b.displayRow();
+        }
+        cout << "----------------------------------------------------------------------------------\n";
+        cout << "Tong so dau sach: " << books.size() << endl;
+    }
+
+    void searchBook() {
+        cout << "\n=== TIM KIEM SACH ===\n";
+        cout << "1. Tim theo ma sach (chinh xac)\n";
+        cout << "2. Tim theo ten sach (gan dung)\n";
+        cout << "3. Tim theo khoảng nam xuat ban\n";
+        cout << "Chon cach tim kiem: ";
+        int choice;
+        cin >> choice;
+        cin.ignore();
+
+        if (choice == 1) {
+            string keyword;
+            cout << "Nhap ma sach can tim: ";
+            getline(cin, keyword);
+            bool found = false;
+            cout << "\nKet qua tim kiem:\n";
+            for (const auto& b : books) {
+                if (b.getId() == keyword) {
+                    b.displayRow();
+                    found = true;
+                }
+            }
+            if (!found) cout << "Khong tim thay sach co ma: " << keyword << endl;
+        } 
+        else if (choice == 2) {
+            string keyword;
+            cout << "Nhap ten sach can tim: ";
+            getline(cin, keyword);
+            string lowerKeyword = keyword;
+            transform(lowerKeyword.begin(), lowerKeyword.end(), lowerKeyword.begin(), ::tolower);
+
+            bool found = false;cout << "\nKet qua tim kiem:\n";
+            for (const auto& b : books) {
+                string lowerTitle = b.getTitle();
+                transform(lowerTitle.begin(), lowerTitle.end(), lowerTitle.begin(), ::tolower);
+                if (lowerTitle.find(lowerKeyword) != string::npos) {
+                    b.displayRow();
+                    found = true;
+                }
+            }
+            if (!found) cout << "Khong tim thay sach phu hop voi ten: " << keyword << endl;
+        } 
+        else if (choice == 3) {
+            int fromYear, toYear;
+            cout << "Nhap nam bat dau: ";
+            cin >> fromYear;
+            cout << "Nhap nam ket thuc: ";
+            cin >> toYear;
+            bool found = false;
+            cout << "\nKet qua tim kiem trong khoang nam [" << fromYear << " - " << toYear << "]:\n";
+            for (const auto& b : books) {
+                if (b.getPublishYear() >= fromYear && b.getPublishYear() <= toYear) {
+                    b.displayRow();
+                    found = true;
+                }
+            }
+            if (!found) cout << "Khong co sach nao trong khoảng nam nay.\n";
+        } else {
+            cout << "Lua chon khong hop le!\n";
+        }
+    }
+
+    void sortBooks() {
+        if (books.empty()) {
+            cout << "\nDanh sach trong, khong";
+			}
+		}
+	};
+int main() {
+   
+    BookManager manager;
+    int choice;
+    
+    do {
+        cout << "\n===== QUAN LY SACH =====" << endl;
+        cout << "1. Xem danh sach sach" << endl;
+        cout << "2. Them sach moi" << endl;
+        cout << "3. Tim kiem sach" << endl;
+        cout << "0. Thoat" << endl;
+        cout << "Chon chuc nang: ";
+        cin >> choice;
+        cin.ignore();
+        
+        switch (choice) {
+            case 1:
+                manager.displayBooks();
+                break;
+            case 2:
+                manager.addBook();
+                break;
+            case 3:
+                manager.searchBook();
+                break;
+            case 0:
+                cout << "Tam biet!" << endl;
+                break;
+            default:
+                cout << "Lua chon khong hop le!" << endl;
+        }
+    } while (choice != 0);
+    
+    return 0;
+};
